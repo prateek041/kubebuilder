@@ -22,31 +22,35 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	_ "k8s.io/client-go/plugin/pkg/client/auth" // importing all kubernetes auth plugins
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"k8s.io/apimachinery/pkg/runtime"                   // for managing runtime objects
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"  // for handling errors and panics
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme" // To define the Kubernets API scheme
+	ctrl "sigs.k8s.io/controller-runtime"               // for building kubernetes controllers
+	"sigs.k8s.io/controller-runtime/pkg/healthz"        // for health checkpoints
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"        // zap logging library
 	//+kubebuilder:scaffold:imports
 )
 
+// creating a scheme, which is a mapping between Kinds and Go struct types.
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme   = runtime.NewScheme()        // new empty instance of scheme type
+	setupLog = ctrl.Log.WithName("setup") // new instance of logger provided by sigs.k8s.io/controller-runtime package.
 )
 
 func init() {
+	// clientsgoscheme.AddToScheme(scheme) is used to add core types like Pod, deployment etc to the scheme (check learning.md for why)
+	// utilruntime.Must is used to panic if there is an error in adding core types.
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	//+kubebuilder:scaffold:scheme
 }
 
 func main() {
+	// flags for CLI
 	var metricsAddr string
-	var enableLeaderElection bool
+	var enableLeaderElection bool // when true, only one replica of controller manager will manage k8s objects otherwise, all of them will.
 	var probeAddr string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -56,11 +60,12 @@ func main() {
 	opts := zap.Options{
 		Development: true,
 	}
-	opts.BindFlags(flag.CommandLine)
+	opts.BindFlags(flag.CommandLine) // adding the opts flag set (from k8s) to the default flag set of flag package.
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts))) // use zap, with opts flags as logger
 
+	// setting up a manager, to manage all out controllers, with shared caches etc. The whole point is to handle the managers and not individual controllers.
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
